@@ -1,32 +1,45 @@
 import socket
 import LFTPHelper as helper
 
-ip_port = ('192.168.199.111', 5005)
+address = '192.168.199.111'
+UDPport = 5005
 BUFSIZE = 1024
 
-udp_server_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-udp_server_client.bind(ip_port)
-
-sequnceNumIndex = 8
-dataIndex = 40
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+serverSocket.bind((address, UDPport))
 
 
-buffer = bytes()
+fileData = bytes(0)
 while True:
-    msg, addr = udp_server_client.recvfrom(BUFSIZE)
-    print(msg, addr)
+    datagram, clientAddress = serverSocket.recvfrom(BUFSIZE)
 
-    receiveNum = msg[sequnceNumIndex:sequnceNumIndex+8]
+    header = datagram[:160]
+    content = datagram[160:]
+    #print(str(header))
 
-    ACK = int.from_bytes( receiveNum, "big", signed=False) + 1
-    buffer += msg[dataIndex:]
+    sourcePort, destPort, sequenceNum, ackNum, SYN, FIN, window = helper.parseHeader(str(header))
+    print(str(header)[111])
+    print(str(header)[112])
+    print(str(header)[113])
+    print(FIN)
+    # checking
+    # do something
 
-    ACKBinary = bin(ACK)[2:].zfill(32)
-    ACKByte = int(ACKBinary, 2).to_bytes( (len(ACKBinary) + 7 ) // 8, 'big')
+    # if checking passed
 
-    response = bytes(16) + ACKByte + bytes(16)
+    ackNum = sequenceNum + len(content) // 8 + 1
+    response = helper.createHeader(sourcePort, destPort, sequenceNum, ackNum)
+    serverSocket.sendto(bytes(response, "ascii"), clientAddress)
+    if (FIN):
+        fileName = "1.jpg"
+        break
+    else:
+        fileData += content
 
-    udp_server_client.sendto(response, addr)
+print("out?")
+file = open("./data/1.jpg", "wb")
+file.write(fileData)
+file.close()
+
 
 

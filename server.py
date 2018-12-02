@@ -14,12 +14,13 @@ commandListener.bind(server_IP_Port)
 uploadPath = "C:/Users/user/Desktop/Primary_TCP/date/"
 
 ports = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009]
-available = [True for x in range(10)]
+threadLock = [False for x in range(10)]
+availableThread = [None for x in range(10)]
 
 def findAvailablePorts():
     for i in range(0, 10):
-        if (available[i]):
-            available[i] = False
+        if  threadLock[i] == False and (availableThread[i] is None or available[i].is_alive() == False):
+            threadLock[i] = True
             return i + 5000
     return -1
 
@@ -45,6 +46,7 @@ while(True):
                 sender = helper.sender((server_IP, availablePort), client_IP_Port, fileObject, packetsNum)
                 sendFileTread = threading.Thread(target = sender.sendFile)
                 sendFileTread.start()
+                threadLock[serverPort-5000] = False
         else:
             # client want to upload
             fileName = getFilePath(command) # filename indeed

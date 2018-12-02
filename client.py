@@ -24,7 +24,7 @@ while len(seg):
     SYN = 0
     packet = bytes(packetHeader, 'ascii') + packetData
     UDP_Client.sendto(packet, IP_PORT)
-    back_msg, addr = UDP_Client.recvfrom(BUFSIZE)
+    
     print(back_msg, addr)
 
 f.close()

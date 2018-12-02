@@ -1,45 +1,62 @@
 import socket
+import threading
+import os
 import LFTPHelper as helper
+import BufferController as B
 
-address = '192.168.199.111'
-UDPport = 5005
+packetSize = 200
 BUFSIZE = 1024
 
-serverSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-serverSocket.bind((address, UDPport))
+server_IP = "192.168.199.111"
+server_IP_Port = ("192.168.199.111", 3000)
+commandListener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+commandListener.bind(server_IP_Port)
+uploadPath = "C:/Users/user/Desktop/Primary_TCP/date/"
 
+ports = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009]
+available = [True for x in range(10)]
 
-fileData = bytes(0)
-while True:
-    datagram, clientAddress = serverSocket.recvfrom(BUFSIZE)
+def findAvailablePorts():
+    for i in range(0, 10):
+        if (available[i]):
+            available[i] = False
+            return i + 5000
+    return -1
 
-    header = datagram[:160]
-    content = datagram[160:]
-    #print(str(header))
+# main
+while(True):
+    command, client_IP_Port = commandListener.recvfrom(BUFSIZE)
 
-    sourcePort, destPort, sequenceNum, ackNum, SYN, FIN, window = helper.parseHeader(str(header))
-    print(str(header)[111])
-    print(str(header)[112])
-    print(str(header)[113])
-    print(FIN)
-    # checking
-    # do something
+    serverPort = findAvailablePorts()
+    if (serverPort in ports):
+        if helper.getIsDownload(command):
+            # client want to download
+            try:
+                filePath = getFilePath(command)
+                fileSize = os.path.getsize(filePath)
+                packetsNum = fileSize // packetSize
+                fileObject = open(filePath, "rb")
+            except Exception as e:
+                # open file fails
+                print(e)
+                commandListener.sendto(helper.createCommand(0, 2, 0, 0, ""), client_IP_Port)
+            else:
+                commandListener.sendto(helper.createCommand(0, 1, serverPort, fileSize, ""), client_IP_Port)
+                sender = helper.sender((server_IP, availablePort), client_IP_Port, fileObject, packetsNum)
+                sendFileTread = threading.Thread(target = sender.sendFile)
+                sendFileTread.start()
+        else:
+            # client want to upload
+            fileName = getFilePath(command) # filename indeed
+            fileSize = getFileSize(command)
+            packetsNum = fileSize // packetSize
+            fileObject = open(uploadPath + fileName, "wb")
 
-    # if checking passed
+            commandListener.sendto(helper.createCommand(0, 1, 0, 0, ""), client_IP_Port)
+            receiver = helper.receiver((server_IP, availablePort), client_IP_Port, fileObject, packetsNum)
+            receiveFileTread = threading.Thread(target = receiver.receiveFile)
+            receiveFileTread.start()
 
-    ackNum = sequenceNum + len(content) // 8 + 1
-    response = helper.createHeader(sourcePort, destPort, sequenceNum, ackNum)
-    serverSocket.sendto(bytes(response, "ascii"), clientAddress)
-    if (FIN):
-        fileName = "1.jpg"
-        break
     else:
-        fileData += content
-
-print("out?")
-file = open("./data/1.jpg", "wb")
-file.write(fileData)
-file.close()
-
-
-
+        # no available port
+        commandListener.sendto(helper.createCommand(0, 3, 0, 0, ""), client_IP_Port)

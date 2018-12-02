@@ -34,7 +34,7 @@ class BufferController:
         self.clearBuffer()
         self.reSendPackets()
 
-    
+
     def sendPackets(self):
         print("index : ", self.index)
         while self.mutex == 1:
@@ -88,11 +88,11 @@ class BufferController:
     def getData(self):
         while self.recevDataSeq < self.totalDataSeq:
             datagram, clientAddress = self.socketInstance.recvfrom(self.BUFSIZE)
-            back_ack = datagram[:20]
-            data = datagram[20:]
-            seq = helper.parseHeader(back_ack)[2]
-
-            self.socketInstance.sendto(helper.createHeader(0, 0, 0, seq), self.ip_port)
+            header = datagram[:10]
+            data = datagram[10:]
+            seq = helper.getSeq(header)
+            # reply ack, ack = seq
+            self.socketInstance.sendto(helper.createHeader(0, seq), self.ip_port)
             if seq == self.recevDataSeq + 1:
                 self.putPacketIntoBuffer(data, seq)
                 self.recevDataSeq = seq
@@ -111,19 +111,18 @@ class BufferController:
         self.socketInstance.settimeout(2)
         while self.recevDataSeq < self.totalDataSeq:
             try:
-                back_msg, addr = self.socketInstance.recvfrom(self.BUFSIZE)
-                back_msg = helper.parseHeader(back_msg[:20])
-                print("back_msg: ",back_msg)
+                ACKDatagram, addr = self.socketInstance.recvfrom(self.BUFSIZE)
+                ACK = helper.getACK(ACKDatagram[:10])
             except Exception as e:
                 print(e)
                 print("TimeOut!")
                 self.timeOutEvent()
                 print("status: ", self.status)
             else:
-                if self.recevDataSeq < back_msg[3]:
-                    self.recevDataSeq = back_msg[3]
+                if self.recevDataSeq < ACK:
+                    self.recevDataSeq = ACK
                 for x in range(0, self.length):
-                    if (self.index[x] == back_msg[3]):
+                    if (self.index[x] == ACK):
                         self.status[x] = 2
                 self.clearBuffer()
 

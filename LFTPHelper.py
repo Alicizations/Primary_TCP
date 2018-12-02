@@ -1,6 +1,7 @@
-import threading
+import BufferController
 
 timeInterval = 5
+packetSize = 200
 
 # num should be a non-negative number
 def intToBytes(num, byteNum):
@@ -9,116 +10,87 @@ def intToBytes(num, byteNum):
 def intFromBytes(byte):
     return int.from_bytes(byte, "big")
 
-def createHeader(srcPort, dstPort, seqNum, ackNum, SYN=0, FIN=0, window=1024):
-    header = intToBytes(srcPort, 2)
-    header += intToBytes(dstPort, 2)
-    header += intToBytes(seqNum, 4)
-    header += intToBytes(ackNum, 4)
-    header += intToBytes(SYN, 1)
-    header += intToBytes(FIN, 1)
+def createHeader(seq, ack, window=1024):
+    header = intToBytes(seq, 4)
+    header += intToBytes(ack, 4)
     header += intToBytes(window, 2)
-    header += intToBytes(0, 4)
     return header
 
-def parseHeader(header):
-    srcPort = intFromBytes(header[0:2])
-    dstPort = intFromBytes(header[2:4])
-    seqNum = intFromBytes(header[4:8])
-    ackNum = intFromBytes(header[8:12])
-    SYN = intFromBytes(header[12:13])
-    FIN = intFromBytes(header[13:14])
-    window = intFromBytes(header[14:16])
-    return srcPort, dstPort, seqNum, ackNum, SYN, FIN, window
+def getSeq(header):
+    return intFromBytes(header[0:4])
+
+def getACK(header):
+    return intFromBytes(header[4:8])
+
+def getWindow(header):
+    return intFromBytes(header[8:10])
+
+''' isOK: 1: ready to transfer
+          0: error
+          2: file not found
+          3: no available port
+'''
+def createCommand(isDownload, isOK, transferPort, fileSize, filePath):
+    command = intToBytes(isDownload, 1)
+    command += intToBytes(isOK, 1)
+    command += intToBytes(transferPort, 2)
+    command += intToBytes(fileSize, 4)
+    command += filePath.encode("utf-8")
+    return command
+
+def getIsDownload(command):
+    return intFromBytes(command[:1])
+
+def getIsOK(command):
+    return intFromBytes(command[1:2])
+
+def getTransferPort(command):
+    return intFromBytes(command[2:4])
+
+def getFileSize(command):
+    return intFromBytes(command[4:8])
+
+def getFilePath(command):
+    return command[8:].decode("utf-8")
 
 class sender:
-    """
-    base: oldest unacknowledged packet
-    nextSeq: smallest unused sequence number
-    """
-    def __init__(self, srcPort, rcvPort, rcvIP, window):
-        super(sender, self).__init__()
-        self.srcPort = srcPort
-        self.rcvPort = rcvPort
-        self.rcvIP = rcvIP
-        self.window = window
-
-        self.UDPsocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        self.base = 0
-        self.nextSeq = 0
-        self.window = window
-        self.BUFSIZE = 1024
-
-    def sendPacket(seq, ACK, data=bytes(0)):
-        header = createHeader(self.srcPort, self.dstPort, seq, ACK)
-        self.UDPsocket.sendto(header + data, (self.rcvIP, self.rcvPort))
-
-    def startTimer(seq, data):
-        # retransmit not-yet-acknowledged segment
-        def retransmit(seq, data):
-            if (seq < base):
-                sendPacket(seq, 0, data)
-                timer = threading.Timer(timeInterval, retransmit, seq, data)
-                timer.start()
-
-        timer = threading.Timer(timeInterval, retransmit, seq, data)
-        timer.start()
+    def __init__(self, sender_IP_Port, receiver_IP_Port, fileObject, packetsNum):
+        UDPsocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        UDPsocket.bind(sender_IP_Port)
+        self.controller = BufferController.BufferController(True, UDPsocket, receiver_IP_Port, 0, packetsNum)
+        self.file = fileObject
+        self.seq = 0
+        self.working = True
 
     def sendFile():
-        # while ACK >= file.size():
-        pass
+        self.controller.openReceive() # To receive ack from receiver
 
-        while (true):
-            # receive ACK, update base
-            datagram, rcvAddress = self.UDPsocket.recvfrom(self.BUFSIZE)
-            header = parseHeader(datagram[:20])
-            ACK = header[3]
-            if (ACK > self.base):
-                self.base = ACK
+        while self.working:
+            while self.controller.notFull():
+                packetData = self.file.read(packetSize)
 
-            # read file into buffer
-            pass
+                if len(packetData) == 0:
+                    # if read out of file
+                    self.working = 0
+                    break
 
-            # send packet if window is not full
-            if (self.nextSeq < self.base + self.window):
-                # data = fileBuffer[index]
-                pass
-                sendPacket(0, self.nextSeq, data)
-                startTimer(self.nextSeq, data) # when to start timer?
-                self.nextSeq += len(data)
+                packetHeader = createHeader(seq, 0)
+                packet = packetHeader + packetData
+                print("seq: ", seq)
+                self.controller.putPacketIntoBuffer(packet, seq)
+                self.controller.sendPackets()
+                seq += 1
+
+        self.file.close()
+
 
 class receiver(object):
     """ ACK: cumulative ACK, next bytes expected to receive"""
-    def __init__(self, srcPort, rcvPort, srcIP, rcvIP, window):
-        super(sender, self).__init__()
-        self.srcPort = srcPort
-        self.rcvPort = rcvPort
-        self.rcvIP = rcvIP
-        self.window = window
-
-        self.UDPsocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        self.UDPsocket.bind((srcIP, srcPort))
-        self.BUFSIZE = 1024
-        self.ACK = 0
-
-    def sendPacket(seq, ACK, data=bytes(0)):
-        header = createHeader(self.srcPort, self.dstPort, seq, ACK)
-        self.UDPsocket.sendto(header + data, (self.rcvIP, self.rcvPort))
+    def __init__(self, sender_IP_Port, receiver_IP_Port, fileObject, packetsNum):
+        UDPsocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        UDPsocket.bind(receiver_IP_Port)
+        self.controller = BufferController.BufferController(Flase, UDPsocket, sender_IP_Port, fileObject, packetsNum)
 
     def receiveFile():
-        while (true):
-            # receive data
-            datagram, rcvAddress = self.UDPsocket.recvfrom(self.BUFSIZE)
-            header = parseHeader(datagram[:20])
-            seq = header[2]
+        self.controller.openReceive()
 
-            if (seq > self.ACK):
-                # un-order packet
-                sendPacket(0, self.ACK)
-            elif (seq == self.ACK):
-                data = datagram[20:]
-                self.ACK += len(data)
-                sendPacket(0, self.ACK)
-                # write data into disk
-                pass
-            # else:
-                # drop duplicate packet

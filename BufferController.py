@@ -5,18 +5,20 @@ class BufferController:
     """docstring for BufferController"""
     isSender = 0
     socketInstance = 0
-    windowSize = 2
+    windowSize = 4
     base = 0;
     length = 0;
     status = [] # 0:not send, 1:send not ack, 2:acked
     cache = []
     index = []
     totalDataSeq = 0
-    recevDataSeq = 0
+    recevDataSeq = -1
     file = 0
     onRecev = 0
     BUFSIZE = 1024
     ip_port = 0
+    mutex = 0
+    writeFileOver = 0
     def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _totalDataSeq = 0):
         self.isSender = _isSender
         self.socketInstance = _socketInstance
@@ -30,94 +32,129 @@ class BufferController:
     def timeOutEvent(self):
         # self.windowSize = 2
         self.clearBuffer()
-        self.sendPackets()
+        self.reSendPackets()
 
     
     def sendPackets(self):
-        for x in xrange(0, self.length):
-            if self.status[x] != 2:
-                self.socketInstance.sendto(self.cache[x], self.ip_port)
+        print("index : ", self.index)
+        while self.mutex == 1:
+            continue
+        mutex = 1
+        for x in range(0, self.length):
+            if self.status[x] == 0:
                 self.status[x] = 1
+                self.socketInstance.sendto(self.cache[x], self.ip_port)
+        mutex = 0
+
+    def reSendPackets(self):
+        print("index : ", self.index)
+        while self.mutex == 1:
+            continue
+        mutex = 1
+        for x in range(0, self.length):
+            if self.status[x] == 1:
+                self.socketInstance.sendto(self.cache[x], self.ip_port)
+        mutex = 0
 
     def putPacketIntoBuffer(self, data, sa):
-        if (self.isSender && self.length >= self.windowSize):
-            return false;
+        if (self.isSender and self.length >= self.windowSize):
+            return False;
+        while self.mutex == 1:
+            continue
+        mutex = 1
         self.status.append(0)
         self.cache.append(data)
         self.index.append(sa)
         self.length += 1
-        return true
+        mutex = 0
+        return True
 
     def isEmpty(self):
         return self.length > 0
 
     def getPacketFromBuffer(self):
+        while self.mutex == 1:
+            continue
+        mutex = 1
         data = self.cache[0]
-        self.status = status[1:]
-        self.cache = cache[1:]
-        self.index = index[1:]
-        self.base = self.index[0]
+        self.status = self.status[1:]
+        self.cache = self.cache[1:]
+        self.index = self.index[1:]
+        # self.base = self.index[0]
         self.length -= 1
+        mutex = 0
         return data
 
     def getData(self):
         while self.recevDataSeq < self.totalDataSeq:
-            datagram, clientAddress = self.socketInstance.recvfrom(BUFSIZE)
+            datagram, clientAddress = self.socketInstance.recvfrom(self.BUFSIZE)
             back_ack = datagram[:20]
             data = datagram[20:]
-            seq = helper.parseHeader(back_ack)[3]
-            self.recevDataSeq += seq
-            self.socketInstance.sendto(back_ack, self.ip_port)
-            self.putPacketIntoBuffer(data, seq)
+            seq = helper.parseHeader(back_ack)[2]
+
+            self.socketInstance.sendto(helper.createHeader(0, 0, 0, seq), self.ip_port)
+            if seq == self.recevDataSeq + 1:
+                self.putPacketIntoBuffer(data, seq)
+                self.recevDataSeq = seq
+        self.writeFileOver = 1
 
     def autoWriteFile(self):
-        while self.length > 0:
-            data = self.getPacketFromBuffer()
-            self.file.write(data)
+        while self.writeFileOver == 0:
+            print(self.length)
+            if self.length > 0:
+                data = self.getPacketFromBuffer()
+                print("writing data: ", data)
+                self.file.write(data)
+        self.file.close()
 
     def getACK(self):
-        clearTime = 0
-        while self.length > 0:
+        self.socketInstance.settimeout(2)
+        while self.recevDataSeq < self.totalDataSeq:
             try:
-                back_msg, addr = self.socketInstance.recvfrom(BUFSIZE)
+                back_msg, addr = self.socketInstance.recvfrom(self.BUFSIZE)
                 back_msg = helper.parseHeader(back_msg[:20])
+                print("back_msg: ",back_msg)
             except Exception as e:
                 print(e)
                 print("TimeOut!")
                 self.timeOutEvent()
+                print("status: ", self.status)
             else:
-                clearTime += 1
-                for x in xrange(0, self.length):
+                if self.recevDataSeq < back_msg[3]:
+                    self.recevDataSeq = back_msg[3]
+                for x in range(0, self.length):
                     if (self.index[x] == back_msg[3]):
                         self.status[x] = 2
-                if (clearTime >= 3):
-                    self.clearBuffer()
+                self.clearBuffer()
 
     def clearBuffer(self):
+        while self.mutex == 1:
+            continue
+        mutex = 1
         ackedIndex = 0
-        for x in xrange(0, self.length):
+        for x in range(0, self.length):
             if (self.status[x] != 2):
                 ackedIndex = x
                 break
-        self.status = status[ackedIndex:]
-        self.cache = cache[ackedIndex:]
-        self.index = index[ackedIndex:]
+        self.status = self.status[ackedIndex:]
+        self.cache = self.cache[ackedIndex:]
+        self.index = self.index[ackedIndex:]
         self.base = self.index[0]
         self.length = len(self.status)
+        mutex = 0
 
     def notFull(self):
-        return self.length < windowSize
+        return self.length < self.windowSize
 
     def openReceive(self):
         if self.onRecev == 1:
             return
         self.onRecev = 1
         if self.isSender:
-            self.socketInstance.settimeout(2)
-            gACK = tr.Thread(target = getACK, args = (self,))
+            gACK = tr.Thread(target = self.getACK)
             gACK.start()
         else:
-            wf = tr.Thread(target = autoWriteFile, args = (self,))
-            gData = tr.Thread(target = autoWriteFile, args = (self,))
+            wf = tr.Thread(target = self.autoWriteFile)
+            gData = tr.Thread(target = self.getData)
             gData.start()
             wf.start()

@@ -114,11 +114,11 @@ class receiver(object):
             if (seq > self.ACK):
                 # un-order packet
                 sendPacket(0, self.ACK)
-            else if (seq == self.ACK):
+            elif (seq == self.ACK):
                 data = datagram[20:]
                 self.ACK += len(data)
                 sendPacket(0, self.ACK)
                 # write data into disk
                 pass
-            else:
+            # else:
                 # drop duplicate packet

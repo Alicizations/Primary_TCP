@@ -72,6 +72,7 @@ class sender:
                 if len(packetData) == 0:
                     # if read out of file
                     self.working = 0
+                    print("break!")
                     break
 
                 packetHeader = createHeader(self.seq, 0)
@@ -81,6 +82,7 @@ class sender:
                 self.controller.sendPackets()
                 self.seq += 1
         self.file.close()
+        print("send over!")
 
 
 

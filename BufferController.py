@@ -1,7 +1,7 @@
 import threading as tr
 import LFTPHelper as helper
 
-class BufferController():
+class BufferController:
     """docstring for BufferController"""
     isSender = 0            # sender or not
     socketInstance = 0      # socket instance
@@ -148,7 +148,7 @@ class BufferController():
             print("seq, recevDataSeq : ", seq, self.recevDataSeq)
             # reply ack, ack = seq
             if (seq <= self.recevDataSeq + 1):
-                self.socketInstance.sendto(helper.createHeader(0, seq), self.ip_port)
+                self.socketInstance.sendto(helper.createHeader(0, seq, helper.memoryBuffer-self.length), self.ip_port)
             if seq == self.recevDataSeq + 1:
                 self.putPacketIntoBuffer(data, seq)
                 self.recevDataSeq = seq
@@ -173,7 +173,11 @@ class BufferController():
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
+<<<<<<< HEAD
                 sWnd = helper.getWindow(ACKDatagram[:10])
+=======
+                rwdn = helper.getWindow(ACKDatagram[:10])
+>>>>>>> d2f91c975e2a467288978c62e988f426ff5ed167
                 print("ACK: ", ACK)
             except Exception as e:
                 print(e)

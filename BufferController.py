@@ -36,8 +36,8 @@ class BufferController:
         self.mutex = 0
         self.writeFileOver = 0
         self.sending = 0
-        self.lastTimeOutWnd = 2000
-        self.maxWnd = 2000
+        self.lastTimeOutWnd = 30
+        self.maxWnd = 50
 
     def increaseWindowSize(self):
         if self.windowSize >= self.maxWnd:
@@ -56,8 +56,8 @@ class BufferController:
 
 
     def sendPackets(self):
-        print("index : ", self.index)
-        print("status: ", self.status)
+        # print("index : ", self.index)
+        # print("status: ", self.status)
         if self.sending:
             return
         while self.mutex == 1:
@@ -74,9 +74,9 @@ class BufferController:
         self.mutex = 0
 
     def reSendPackets(self):
-        print("resend : ")
-        print("index : ", self.index)
-        print("status: ", self.status)
+        print("resend")
+        # print("index : ", self.index)
+        # print("status: ", self.status)
         while self.mutex == 1:
             continue
         self.mutex = 1
@@ -91,8 +91,8 @@ class BufferController:
 
     def putPacketIntoBuffer(self, data, sa):
         print("want to put data:")
-        print("index : ", self.index)
-        print("status: ", self.status)
+        # print("index : ", self.index)
+        # print("status: ", self.status)
         if (self.isSender and self.length >= self.windowSize):
             return False;
         while self.mutex == 1:
@@ -193,9 +193,9 @@ class BufferController:
                 self.clearBuffer()
                 self.setWindowSize(sWnd)
                 self.increaseWindowSize()
-            finally:
-                print("index : ", self.index)
-                print("status: ", self.status)
+            # finally:
+                # print("index : ", self.index)
+                # print("status: ", self.status)
         print("get ACK over")
 
     def clearBuffer(self):

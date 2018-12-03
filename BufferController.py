@@ -18,8 +18,8 @@ class BufferController:
     mutex = 0               # mutex for length
     writeFileOver = 0       # flag for stopping file writing
     sending = 0             # send status
-    lastTimeOutWnd = 2000   # last time-out window size
-    maxWnd = 2000           # buffer max window size
+    lastTimeOutWnd = 15     # last time-out window size
+    maxWnd = 30             # buffer max window size
     def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
         self.isSender = _isSender
         self.socketInstance = _socketInstance
@@ -36,8 +36,8 @@ class BufferController:
         self.mutex = 0
         self.writeFileOver = 0
         self.sending = 0
-        self.lastTimeOutWnd = 30
-        self.maxWnd = 50
+        self.lastTimeOutWnd = 15
+        self.maxWnd = 30
 
     def increaseWindowSize(self):
         if self.windowSize >= self.maxWnd:
@@ -58,35 +58,29 @@ class BufferController:
     def sendPackets(self):
         # print("index : ", self.index)
         # print("status: ", self.status)
-        if self.sending:
-            return
-        while self.mutex == 1:
+        while self.mutex == 2:
             continue
         self.mutex = 1
-        self.sending = 1
         for x in range(0, self.length):
             if self.status[x] == 0:
                 self.status[x] = 1
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
             if self.index[x] > self.recevDataSeq + 10:
                 break
-        self.sending = 0
         self.mutex = 0
 
     def reSendPackets(self):
         print("resend")
         # print("index : ", self.index)
         # print("status: ", self.status)
-        while self.mutex == 1:
+        while self.mutex == 2:
             continue
         self.mutex = 1
-        self.sending = 1
         for x in range(0, self.length):
             if self.status[x] == 1:
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
-            if self.index[x] > self.recevDataSeq:
+            if self.index[x] > self.recevDataSeq + 5:
                 break
-        self.sending = 0
         self.mutex = 0
 
     def putPacketIntoBuffer(self, data, sa):
@@ -95,7 +89,7 @@ class BufferController:
         # print("status: ", self.status)
         if (self.isSender and self.length >= self.windowSize):
             return False;
-        while self.mutex == 1:
+        while self.mutex == 2:
             continue
         self.mutex = 1
         self.status.append(0)
@@ -191,8 +185,8 @@ class BufferController:
                         self.status[x] = 2
                         break
                 self.clearBuffer()
-                self.setWindowSize(sWnd)
                 self.increaseWindowSize()
+                self.setWindowSize(sWnd)
             # finally:
                 # print("index : ", self.index)
                 # print("status: ", self.status)
@@ -203,7 +197,7 @@ class BufferController:
             return
         while self.mutex == 1:
             continue
-        self.mutex = 1
+        self.mutex = 2
         ackedIndex = self.length
         for x in range(0, self.length):
             if (self.status[x] != 2):

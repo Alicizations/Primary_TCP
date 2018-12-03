@@ -2,7 +2,7 @@ import BufferController as BC
 
 packetSize = 2000
 BUFSIZE = 2048
-memoryBuffer = 2000 # count in number of packets
+memoryBuffer = 40 # count in number of packets
 
 # num should be a non-negative number
 def intToBytes(num, byteNum):
@@ -84,10 +84,10 @@ class sender:
                 while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
                     self.controller.putPacketIntoBuffer(packet, self.seq)
 
-                if self.controller.readyToSend():
+                if (True or self.controller.readyToSend()):
                     self.controller.sendPackets()
                 self.seq += 1
-            if self.controller.readyToSend():
+            if (True or self.controller.readyToSend()):
                 self.controller.sendPackets()
                 
         self.file.close()

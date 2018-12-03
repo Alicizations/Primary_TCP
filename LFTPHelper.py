@@ -87,6 +87,9 @@ class sender:
                 if self.controller.readyToSend():
                     self.controller.sendPackets()
                 self.seq += 1
+            if self.controller.readyToSend():
+                self.controller.sendPackets()
+                
         self.file.close()
         print("send over!")
 

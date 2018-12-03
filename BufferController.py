@@ -3,21 +3,23 @@ import LFTPHelper as helper
 
 class BufferController():
     """docstring for BufferController"""
-    isSender = 0
-    socketInstance = 0
-    windowSize = 4
-    length = 0
-    status = [] # 0:not send, 1:send not ack, 2:acked
-    cache = []
-    index = []
-    maxDataSeq = 0
-    recevDataSeq = -1
-    file = 0
-    onRecev = 0
-    ip_port = 0
-    mutex = 0
-    writeFileOver = 0
-    sending = 0
+    isSender = 0            # sender or not
+    socketInstance = 0      # socket instance
+    windowSize = 4          # window size
+    length = 0              # buffer's length
+    status = []             # 0:not send, 1:send not ack, 2:acked
+    cache = []              # data cache
+    index = []              # data seq
+    maxDataSeq = 0          # max seq
+    recevDataSeq = -1       # already recev max seq
+    file = 0                # file pointer (already open)
+    onRecev = 0             # control recev func
+    ip_port = 0             # (ip, port)
+    mutex = 0               # mutex for length
+    writeFileOver = 0       # flag for stopping file writing
+    sending = 0             # send status
+    lastTimeOutWnd = 2000   # last time-out window size
+    maxWnd = 2000           # buffer max window size
     def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
         self.isSender = _isSender
         self.socketInstance = _socketInstance
@@ -34,12 +36,21 @@ class BufferController():
         self.mutex = 0
         self.writeFileOver = 0
         self.sending = 0
+        self.lastTimeOutWnd = 2000
+        self.maxWnd = 2000
 
-    def doubleWindowSize(self):
-        self.windowSize *= 2
+    def increaseWindowSize(self):
+        if self.windowSize >= self.maxWnd:
+            return
+        if self.windowSize < self.lastTimeOutWnd:
+            self.windowSize *= 2
+        else:
+            self.windowSize += 1
+        
 
     def timeOutEvent(self):
-        # self.windowSize = 2
+        self.lastTimeOutWnd = self.windowSize
+        self.windowSize = 4
         self.clearBuffer()
         self.reSendPackets()
 
@@ -69,7 +80,7 @@ class BufferController():
         self.mutex = 1
         self.sending = 1
         for x in range(0, self.length):
-            if self.status[x] == 0 or self.status[x] == 1:
+            if self.status[x] == 1:
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
         self.sending = 0
         self.mutex = 0
@@ -90,8 +101,14 @@ class BufferController():
         self.mutex = 0
         return True
 
-    def isEmpty(self):
-        return self.length > 0
+    def readyToSend(self):
+        if self.length >= self.windowSize // 4 or self.recevDataSeq >= self.maxDataSeq - 5:
+            return True
+        return False
+
+    def setWindowSize(self, sWnd):
+        if sWnd < self.windowSize:
+            self.windowSize = sWnd
 
     def getPacketFromBuffer(self):
         if self.length <= 0:
@@ -103,8 +120,21 @@ class BufferController():
         self.status = self.status[1:]
         self.cache = self.cache[1:]
         self.index = self.index[1:]
-        # self.base = self.index[0]
         self.length -= 1
+        self.mutex = 0
+        return data
+
+    def getAllPacketFromBuffer(self):
+        if self.length <= 0:
+            return
+        while self.mutex == 1:
+            continue
+        self.mutex = 1
+        data = self.cache
+        self.status = []
+        self.cache = []
+        self.index = []
+        self.length = 0
         self.mutex = 0
         return data
 
@@ -127,13 +157,14 @@ class BufferController():
     def autoWriteFile(self):
         while self.writeFileOver == 0:
             if self.length > 0:
-                data = self.getPacketFromBuffer()
-                print("writing data: ", data)
-                self.file.write(data)
-        while self.length > 0:
-            data = self.getPacketFromBuffer()
-            print("writing data: ", data)
-            self.file.write(data)
+                data = self.getAllPacketFromBuffer()
+                for x in range(0, len(data)):
+                    self.file.write(data[x])
+        if self.length > 0:
+            print("last time to write data")
+            data = self.getAllPacketFromBuffer()
+            for x in range(0, len(data)):
+                self.file.write(data[x])
         self.file.close()
 
     def getACK(self):
@@ -142,6 +173,7 @@ class BufferController():
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
+                sWnd = helper.getWindow(ACKDatagram[:10])
                 print("ACK: ", ACK)
             except Exception as e:
                 print(e)
@@ -153,7 +185,10 @@ class BufferController():
                 for x in range(0, self.length):
                     if (self.index[x] == ACK):
                         self.status[x] = 2
+                        break
                 self.clearBuffer()
+                self.setWindowSize(sWnd)
+                self.increaseWindowSize()
             finally:
                 print("index : ", self.index)
                 print("status: ", self.status)

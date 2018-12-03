@@ -2,7 +2,7 @@ import BufferController as BC
 
 packetSize = 2000
 BUFSIZE = 2048
-memoryBuffer = 20 # count in number of packets
+memoryBuffer = 2000 # count in number of packets
 
 # num should be a non-negative number
 def intToBytes(num, byteNum):
@@ -75,15 +75,17 @@ class sender:
                 if len(packetData) == 0:
                     # if read out of file
                     self.working = 0
-                    print("break!")
                     break
 
                 packetHeader = createHeader(self.seq, 0)
                 packet = packetHeader + packetData
                 print("seq: ", self.seq)
+                # if buffer is full, wait buffer space
                 while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
                     self.controller.putPacketIntoBuffer(packet, self.seq)
-                self.controller.sendPackets()
+
+                if self.controller.readyToSend():
+                    self.controller.sendPackets()
                 self.seq += 1
         self.file.close()
         print("send over!")

@@ -52,7 +52,7 @@ class BufferController:
             continue
         mutex = 1
         for x in range(0, self.length):
-            if self.status[x] == 1:
+            if self.status[x] == 0 or self.status[x] == 1:
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
         mutex = 0
 
@@ -91,6 +91,8 @@ class BufferController:
             header = datagram[:10]
             data = datagram[10:]
             seq = helper.getSeq(header)
+
+            print("seq, recevDataSeq : ", seq, recevDataSeq)
             # reply ack, ack = seq
             self.socketInstance.sendto(helper.createHeader(0, seq), self.ip_port)
             if seq == self.recevDataSeq + 1:
@@ -100,7 +102,6 @@ class BufferController:
 
     def autoWriteFile(self):
         while self.writeFileOver == 0:
-            print(self.length)
             if self.length > 0:
                 data = self.getPacketFromBuffer()
                 print("writing data: ", data)
@@ -113,6 +114,7 @@ class BufferController:
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(self.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
+                print("ACK: ", ACK)
             except Exception as e:
                 print(e)
                 print("TimeOut!")
@@ -130,7 +132,7 @@ class BufferController:
         while self.mutex == 1:
             continue
         mutex = 1
-        ackedIndex = 0
+        ackedIndex = self.length
         for x in range(0, self.length):
             if (self.status[x] != 2):
                 ackedIndex = x
@@ -138,7 +140,6 @@ class BufferController:
         self.status = self.status[ackedIndex:]
         self.cache = self.cache[ackedIndex:]
         self.index = self.index[ackedIndex:]
-        self.base = self.index[0]
         self.length = len(self.status)
         mutex = 0
 

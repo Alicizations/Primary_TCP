@@ -25,44 +25,44 @@ def getACK(header):
 def getWindow(header):
     return intFromBytes(header[8:10])
 
-''' isOK: 1: ready to transfer
-          0: error
-          2: file not found
-          3: no available port
+''' state: 0: error
+           1: ready to transfer
+           2: file not found
+           3: no available port
 '''
-def createCommand(isDownload, isOK, transferPort, fileSize, filePath):
-    command = intToBytes(isDownload, 1)
-    command += intToBytes(isOK, 1)
-    command += intToBytes(transferPort, 2)
-    command += intToBytes(fileSize, 4)
-    command += filePath.encode("utf-8")
-    return command
+errorMessage = ["unknown error", "OK", "file not found", "no available port"]
+def createMessage(isDownload, state, transferPort, fileSize, fileName):
+    message = intToBytes(isDownload, 1)
+    message += intToBytes(state, 1)
+    message += intToBytes(transferPort, 2)
+    message += intToBytes(fileSize, 4)
+    message += fileName.encode("utf-8")
+    return message
 
-def getIsDownload(command):
-    return intFromBytes(command[:1])
+def getIsDownload(message):
+    return intFromBytes(message[:1])
 
-def getIsOK(command):
-    return intFromBytes(command[1:2])
+def getState(message):
+    return intFromBytes(message[1:2])
 
-def getTransferPort(command):
-    return intFromBytes(command[2:4])
+def getTransferPort(message):
+    return intFromBytes(message[2:4])
 
-def getFileSize(command):
-    return intFromBytes(command[4:8])
+def getFileSize(message):
+    return intFromBytes(message[4:8])
 
-def getFilePath(command):
-    return command[8:].decode("utf-8")
+def getFileName(message):
+    return message[8:].decode("utf-8")
 
 class sender:
-    def __init__(self, sender_IP_Port, receiver_IP_Port, fileObject, packetsNum):
-        UDPsocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        UDPsocket.bind(sender_IP_Port)
-        self.controller = BufferController.BufferController(True, UDPsocket, receiver_IP_Port, 0, packetsNum)
+    def __init__(self, senderUDPsocket, receiver_IP_Port, fileObject, packetsNum):
+        self.UDPsocket = senderUDPsocket
+        self.controller = BufferController.BufferController(True, senderUDPsocket, receiver_IP_Port, 0, packetsNum)
         self.file = fileObject
         self.seq = 0
         self.working = True
 
-    def sendFile():
+    def sendFile(self):
         self.controller.openReceive() # To receive ack from receiver
 
         while self.working:
@@ -74,23 +74,21 @@ class sender:
                     self.working = 0
                     break
 
-                packetHeader = createHeader(seq, 0)
+                packetHeader = createHeader(self.seq, 0)
                 packet = packetHeader + packetData
-                print("seq: ", seq)
-                self.controller.putPacketIntoBuffer(packet, seq)
+                print("seq: ", self.seq)
+                self.controller.putPacketIntoBuffer(packet, self.seq)
                 self.controller.sendPackets()
-                seq += 1
-
+                self.seq += 1
         self.file.close()
+
 
 
 class receiver(object):
     """ ACK: cumulative ACK, next bytes expected to receive"""
-    def __init__(self, sender_IP_Port, receiver_IP_Port, fileObject, packetsNum):
-        UDPsocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        UDPsocket.bind(receiver_IP_Port)
-        self.controller = BufferController.BufferController(Flase, UDPsocket, sender_IP_Port, fileObject, packetsNum)
+    def __init__(self, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum):
+        self.controller = BufferController.BufferController(False, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum)
 
-    def receiveFile():
+    def receiveFile(self):
         self.controller.openReceive()
 

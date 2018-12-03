@@ -6,8 +6,7 @@ class BufferController:
     isSender = 0
     socketInstance = 0
     windowSize = 4
-    base = 0;
-    length = 0;
+    length = 0
     status = [] # 0:not send, 1:send not ack, 2:acked
     cache = []
     index = []
@@ -26,6 +25,17 @@ class BufferController:
         self.file = _file
         self.ip_port = _ip_port
         self.totalDataSeq = _totalDataSeq
+        self.windowSize = 4
+        self.length = 0;
+        self.status = []
+        self.cache = []
+        self.index = []
+        self.recevDataSeq = -1
+        self.onRecev = 0
+        self.BUFSIZE = 1024
+        self.mutex = 0
+        self.writeFileOver = 0
+        self.sending = 0
 
     def doubleWindowSize(self):
         self.windowSize *= 2
@@ -67,6 +77,9 @@ class BufferController:
         self.mutex = 0
 
     def putPacketIntoBuffer(self, data, sa):
+        print("want to put data:")
+        print("index : ", self.index)
+        print("status: ", self.status)
         if (self.isSender and self.length >= self.windowSize):
             return False;
         while self.mutex == 1:
@@ -146,6 +159,7 @@ class BufferController:
             finally:
                 print("index : ", self.index)
                 print("status: ", self.status)
+        print("get ACK over")
 
     def clearBuffer(self):
         if self.length <= 0:

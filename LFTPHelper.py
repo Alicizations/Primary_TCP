@@ -78,7 +78,8 @@ class sender:
                 packetHeader = createHeader(self.seq, 0)
                 packet = packetHeader + packetData
                 print("seq: ", self.seq)
-                self.controller.putPacketIntoBuffer(packet, self.seq)
+                while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
+                    self.controller.putPacketIntoBuffer(packet, self.seq)
                 self.controller.sendPackets()
                 self.seq += 1
         self.file.close()

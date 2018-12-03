@@ -68,6 +68,8 @@ class BufferController:
             if self.status[x] == 0:
                 self.status[x] = 1
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
+            if self.index[x] > self.recevDataSeq + 10:
+                break
         self.sending = 0
         self.mutex = 0
 
@@ -82,6 +84,8 @@ class BufferController:
         for x in range(0, self.length):
             if self.status[x] == 1:
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
+            if self.index[x] > self.recevDataSeq:
+                break
         self.sending = 0
         self.mutex = 0
 

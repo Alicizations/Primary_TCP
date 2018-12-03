@@ -1,7 +1,7 @@
 import threading as tr
 import LFTPHelper as helper
 
-class BufferController:
+class BufferController():
     """docstring for BufferController"""
     isSender = 0
     socketInstance = 0

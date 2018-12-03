@@ -53,7 +53,7 @@ elif (message[1] == "lsend"):
     try:
         fileName = message[3]
         fileSize = os.path.getsize(dataPath + fileName)
-        packetsNum = math.ceil(fileSize / helper.packetSize)
+        packetsNum = math.ceil(fileSize / helper.packetSize) - 1
         fileObject = open(dirPath + fileName, "rb")
     except Exception as e:
         # open file fails

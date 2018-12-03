@@ -2,6 +2,7 @@ import BufferController as BC
 
 packetSize = 2000
 BUFSIZE = 2048
+memoryBuffer = 20 # count in number of packets
 
 # num should be a non-negative number
 def intToBytes(num, byteNum):
@@ -10,7 +11,8 @@ def intToBytes(num, byteNum):
 def intFromBytes(byte):
     return int.from_bytes(byte, "big")
 
-def createHeader(seq, ack, window=1024):
+# window count in number of packets
+def createHeader(seq, ack, window=20):
     header = intToBytes(seq, 4)
     header += intToBytes(ack, 4)
     header += intToBytes(window, 2)

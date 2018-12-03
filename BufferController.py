@@ -173,11 +173,7 @@ class BufferController:
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
-<<<<<<< HEAD
                 sWnd = helper.getWindow(ACKDatagram[:10])
-=======
-                rwdn = helper.getWindow(ACKDatagram[:10])
->>>>>>> d2f91c975e2a467288978c62e988f426ff5ed167
                 print("ACK: ", ACK)
             except Exception as e:
                 print(e)

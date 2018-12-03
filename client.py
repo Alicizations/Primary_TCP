@@ -36,7 +36,7 @@ if (message[1] == "lget"):
         state = helper.getState(feedback)
         if (state == 1):
             fileSize = helper.getFileSize(feedback)
-            packetsNum = math.ceil(fileSize / helper.packetSize) - 1
+            packetsNum = math.ceil(fileSize / helper.packetSize)
             transferPort = helper.getTransferPort(feedback)
             print("Port:", transferPort)
             fileObject = open(dataPath + fileName, "wb")
@@ -53,7 +53,7 @@ elif (message[1] == "lsend"):
     try:
         fileName = message[3]
         fileSize = os.path.getsize(dataPath + fileName)
-        packetsNum = math.ceil(fileSize / helper.packetSize) - 1
+        packetsNum = math.ceil(fileSize / helper.packetSize)
         fileObject = open(dirPath + fileName, "rb")
     except Exception as e:
         # open file fails

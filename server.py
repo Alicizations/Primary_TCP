@@ -39,7 +39,7 @@ while(True):
             try:
                 fileName = helper.getFileName(message)
                 fileSize = os.path.getsize(dirPath + fileName)
-                packetsNum = math.ceil(fileSize / helper.packetSize) - 1
+                packetsNum = math.ceil(fileSize / helper.packetSize)
                 fileObject = open(dataPath + fileName, "rb")
             except Exception as e:
                 # open file fails
@@ -61,7 +61,7 @@ while(True):
             # client want to upload
             fileName = helper.getFileName(message)
             fileSize = helper.getFileSize(message)
-            packetsNum = packetsNum = math.ceil(fileSize / helper.packetSize) - 1
+            packetsNum = packetsNum = math.ceil(fileSize / helper.packetSize)
             fileObject = open(dataPath + fileName, "wb")
 
             messageListener.sendto(helper.createMessage(0, 1, availablePort, 0, ""), client_IP_Port)

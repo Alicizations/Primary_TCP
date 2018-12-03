@@ -10,21 +10,20 @@ class BufferController:
     status = [] # 0:not send, 1:send not ack, 2:acked
     cache = []
     index = []
-    totalDataSeq = 0
+    maxDataSeq = 0
     recevDataSeq = -1
     file = 0
     onRecev = 0
-    BUFSIZE = 1024
     ip_port = 0
     mutex = 0
     writeFileOver = 0
     sending = 0
-    def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _totalDataSeq = 0):
+    def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
         self.isSender = _isSender
         self.socketInstance = _socketInstance
         self.file = _file
         self.ip_port = _ip_port
-        self.totalDataSeq = _totalDataSeq
+        self.maxDataSeq = _maxDataSeq
         self.windowSize = 4
         self.length = 0;
         self.status = []
@@ -32,7 +31,6 @@ class BufferController:
         self.index = []
         self.recevDataSeq = -1
         self.onRecev = 0
-        self.BUFSIZE = 1024
         self.mutex = 0
         self.writeFileOver = 0
         self.sending = 0
@@ -111,8 +109,8 @@ class BufferController:
         return data
 
     def getData(self):
-        while self.recevDataSeq < self.totalDataSeq:
-            datagram, clientAddress = self.socketInstance.recvfrom(self.BUFSIZE)
+        while self.recevDataSeq < self.maxDataSeq:
+            datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
             header = datagram[:10]
             data = datagram[10:]
             seq = helper.getSeq(header)
@@ -140,9 +138,9 @@ class BufferController:
 
     def getACK(self):
         self.socketInstance.settimeout(2)
-        while self.recevDataSeq < self.totalDataSeq:
+        while self.recevDataSeq < self.maxDataSeq:
             try:
-                ACKDatagram, addr = self.socketInstance.recvfrom(self.BUFSIZE)
+                ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
                 print("ACK: ", ACK)
             except Exception as e:

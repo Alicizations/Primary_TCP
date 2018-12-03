@@ -1,7 +1,7 @@
-import BufferController
+import BufferController as BC
 
-timeInterval = 5
-packetSize = 200
+packetSize = 2000
+BUFSIZE = 2048
 
 # num should be a non-negative number
 def intToBytes(num, byteNum):
@@ -57,7 +57,8 @@ def getFileName(message):
 class sender:
     def __init__(self, senderUDPsocket, receiver_IP_Port, fileObject, packetsNum):
         self.UDPsocket = senderUDPsocket
-        self.controller = BufferController.BufferController(True, senderUDPsocket, receiver_IP_Port, 0, packetsNum)
+        self.controller = BC.BufferController(True, senderUDPsocket, receiver_IP_Port, 0, packetsNum-1)
+                                                                  # maxSeq = pckNum - 1,count from zero
         self.file = fileObject
         self.seq = 0
         self.working = True
@@ -90,8 +91,8 @@ class sender:
 class receiver(object):
     """ ACK: cumulative ACK, next bytes expected to receive"""
     def __init__(self, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum):
-        self.controller = BufferController.BufferController(False, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum)
-
+        self.controller = BC.BufferController(False, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum-1)
+                                                                            # maxSeq = pckNum - 1,count from zero
     def receiveFile(self):
         self.controller.openReceive()
 

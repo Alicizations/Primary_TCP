@@ -2,8 +2,8 @@ import os
 import socket
 import LFTPHelper as helper
 import threading
-BUFSIZE = 1024
-packetSize = 200
+import math
+
 
 server_MessageListener_Port = 3000
 
@@ -23,11 +23,11 @@ if (message[1] == "lget"):
     # download
     fileName = message[3]
     clientSocket.sendto(helper.createMessage(1, 1, 0, 0, fileName), server_IP_Port)
-    feedback, server_IP_Port = clientSocket.recvfrom(BUFSIZE)
+    feedback, server_IP_Port = clientSocket.recvfrom(helper.BUFSIZE)
     state = helper.getState(feedback)
     if (state == 1):
         fileSize = helper.getFileSize(feedback)
-        packetsNum = fileSize//packetSize
+        packetsNum = math.ceil(fileSize / helper.packetSize)
         transferPort = helper.getTransferPort(feedback)
         print("Port:", transferPort)
         fileObject = open(dataPath + fileName, "wb")
@@ -44,21 +44,21 @@ elif (message[1] == "lsend"):
     try:
         fileName = message[3]
         fileSize = os.path.getsize(dataPath + fileName)
-        packetsNum = fileSize//packetSize
+        packetsNum = math.ceil(fileSize / helper.packetSize)
         fileObject = open(dirPath + fileName, "rb")
     except Exception as e:
         # open file fails
         print(e)
     else:
-        clientSocket.sendto(helper.createMessage(0, 1, 0, fileSize, fileObject.name), server_IP_Port)
-        feedback, server_IP_Port = clientSocket.recvfrom(BUFSIZE)
+        clientSocket.sendto(helper.createMessage(0, 1, 0, fileSize, fileName), server_IP_Port)
+        feedback, server_IP_Port = clientSocket.recvfrom(helper.BUFSIZE)
 
         state = helper.getState(feedback)
         if (state == 1):
             transferPort = helper.getTransferPort(feedback)
-
+            print("Port:", transferPort)
             sender = helper.sender(clientSocket, (server_IP, transferPort), fileObject, packetsNum)
-            sendFileTread = threading.Thread(target = sender.receiveFile)
+            sendFileTread = threading.Thread(target = sender.sendFile)
             sendFileTread.start()
         else:
             print(helper.errorMessage[state])

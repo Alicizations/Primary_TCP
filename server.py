@@ -5,8 +5,8 @@ import LFTPHelper as helper
 import math
 
 
-server_IP = "192.168.199.111"
-server_IP_Port = ("192.168.199.111", 3000)
+server_IP = "192.168.199.129"
+server_IP_Port = ("192.168.199.129", 3000)
 messageListener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 messageListener.bind(server_IP_Port)
 dataPath = ".\\data\\"
@@ -28,12 +28,13 @@ def findAvailablePorts():
     return -1
 
 # main
+print("[Server]  LFTP server is running")
 while(True):
-    print("server is running")
     message, client_IP_Port = messageListener.recvfrom(helper.BUFSIZE)
-
+    print("[Server]  get request, try to assign an available port")
     availablePort = findAvailablePorts()
     if (availablePort in ports):
+        print("[Server][", availablePort, "]  find port")
         if helper.getIsDownload(message):
             # client want to download
             try:
@@ -52,11 +53,12 @@ while(True):
                 senderUDPSocket.bind((server_IP, availablePort))
                 UDPSocketPool[availablePort-5000] = senderUDPSocket
 
-                sender = helper.sender(True, senderUDPSocket, client_IP_Port, fileObject, packetsNum)
+                sender = helper.sender(availablePort, senderUDPSocket, client_IP_Port, fileObject, packetsNum)
                 sendFileTread = threading.Thread(target = sender.sendFile)
                 availableThread[availablePort-5000] = sendFileTread
                 sendFileTread.start()
                 threadLock[availablePort-5000] = False
+                print("[Server][", availablePort, "]  server start to send file: ", fileName)
         else:
             # client want to upload
             fileName = helper.getFileName(message)
@@ -70,12 +72,13 @@ while(True):
             receiverUDPSocket.bind((server_IP, availablePort))
             UDPSocketPool[availablePort-5000] = receiverUDPSocket
 
-            print(availablePort)
-            receiver = helper.receiver(True, receiverUDPSocket, client_IP_Port, fileObject, packetsNum)
+            receiver = helper.receiver(availablePort, receiverUDPSocket, client_IP_Port, fileObject, packetsNum)
             receiveFileTread = threading.Thread(target = receiver.receiveFile)
             availableThread[availablePort-5000] = receiveFileTread
             receiveFileTread.start()
+            print("[Server][", availablePort, "]  server start to receive file: ", fileName)
 
     else:
         # no available port
+        print("[Server]  no available port, response to client")
         messageListener.sendto(helper.createMessage(0, 3, 0, 0, ""), client_IP_Port)

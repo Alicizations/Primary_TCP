@@ -71,8 +71,8 @@ class BufferController:
 
     def reSendPackets(self):
         print("resend")
-        # print("index : ", self.index)
-        # print("status: ", self.status)
+        print("index : ", self.index)
+        print("status: ", self.status)
         while self.mutex == 2:
             continue
         self.mutex = 1
@@ -84,7 +84,7 @@ class BufferController:
         self.mutex = 0
 
     def putPacketIntoBuffer(self, data, sa):
-        print("want to put data:")
+        # print("want to put data:")
         # print("index : ", self.index)
         # print("status: ", self.status)
         if (self.isSender and self.length >= self.windowSize):
@@ -137,19 +137,25 @@ class BufferController:
         return data
 
     def getData(self):
+        count = 1000
+        t = 0
         while self.recevDataSeq < self.maxDataSeq:
             datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
             header = datagram[:10]
             data = datagram[10:]
             seq = helper.getSeq(header)
 
-            print("seq, recevDataSeq : ", seq, self.recevDataSeq)
+            # print("seq, recevDataSeq : ", seq, self.recevDataSeq)
             # reply ack, ack = seq
             if (seq <= self.recevDataSeq + 1):
                 self.socketInstance.sendto(helper.createHeader(0, seq, helper.memoryBuffer-self.length), self.ip_port)
             if seq == self.recevDataSeq + 1:
                 self.putPacketIntoBuffer(data, seq)
                 self.recevDataSeq = seq
+                if t > count:
+                    print(count)
+                    t += 1
+                    count += 1000
         self.writeFileOver = 1
 
     def autoWriteFile(self):
@@ -166,13 +172,13 @@ class BufferController:
         self.file.close()
 
     def getACK(self):
-        self.socketInstance.settimeout(2)
+        self.socketInstance.settimeout(3)
         while self.recevDataSeq < self.maxDataSeq:
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
                 sWnd = helper.getWindow(ACKDatagram[:10])
-                print("ACK: ", ACK)
+                # print("ACK: ", ACK)
             except Exception as e:
                 print(e)
                 print("TimeOut!")

@@ -79,7 +79,7 @@ class sender:
 
                 packetHeader = createHeader(self.seq, 0)
                 packet = packetHeader + packetData
-                print("seq: ", self.seq)
+                # print("seq: ", self.seq)
                 # if buffer is full, wait buffer space
                 while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
                     self.controller.putPacketIntoBuffer(packet, self.seq)

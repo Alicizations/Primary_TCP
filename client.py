@@ -76,4 +76,4 @@ elif (message[1] == "lsend"):
             else:
                 print(helper.errorMessage[state])
 else:
-    print(error)
+    print("error")

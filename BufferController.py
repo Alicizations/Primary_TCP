@@ -48,7 +48,7 @@ class BufferController:
             self.windowSize *= 2
         else:
             self.windowSize += 1
-        
+
 
     def timeOutEvent(self):
         self.lastTimeOutWnd = self.windowSize
@@ -86,6 +86,7 @@ class BufferController:
         for x in range(0, self.length):
             if self.status[x] == 1:
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
+                break
             if self.index[x] > self.recevDataSeq + 5:
                 break
         self.mutex = 0

@@ -1,4 +1,6 @@
 import BufferController as BC
+import sys
+import math
 
 packetSize = 2000
 BUFSIZE = 2048
@@ -56,10 +58,21 @@ def getFileSize(message):
 def getFileName(message):
     return message[8:].decode("utf-8")
 
+totalWidth = 40
+def updateProgressBar(percentage, filepath, IP_Port):
+    elements = filepath.split("\\")
+    filename = elements[len(elements)-1]
+
+    barWidth = math.ceil(percentage * totalWidth)
+
+    sys.stdout.write("\r[%s]\t%s\t%s" % (" " * totalWidth, filename, IP_Port))
+    sys.stdout.write("\r[%s" % ("-" * (barWidth)))
+    sys.stdout.flush()
+
 class sender:
-    def __init__(self, senderUDPsocket, receiver_IP_Port, fileObject, packetsNum):
+    def __init__(self, isServer,senderUDPsocket, receiver_IP_Port, fileObject, packetsNum):
         self.UDPsocket = senderUDPsocket
-        self.controller = BC.BufferController(True, senderUDPsocket, receiver_IP_Port, 0, packetsNum-1)
+        self.controller = BC.BufferController(True, isServer, senderUDPsocket, receiver_IP_Port, fileObject, packetsNum-1)
                                                                   # maxSeq = pckNum - 1,count from zero
         self.file = fileObject
         self.seq = 0
@@ -100,9 +113,12 @@ class sender:
 
 class receiver(object):
     """ ACK: cumulative ACK, next bytes expected to receive"""
-    def __init__(self, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum):
-        self.controller = BC.BufferController(False, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum-1)
+    def __init__(self, isServer, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum):
+        self.controller = BC.BufferController(False, isServer, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum-1)
                                                                             # maxSeq = pckNum - 1,count from zero
+        updateProgressBar(0, fileObject.name, sender_IP_Port)
+
     def receiveFile(self):
         self.controller.openReceive()
+
 

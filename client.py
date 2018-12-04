@@ -38,9 +38,8 @@ if (message[1] == "lget"):
             fileSize = helper.getFileSize(feedback)
             packetsNum = math.ceil(fileSize / helper.packetSize)
             transferPort = helper.getTransferPort(feedback)
-            print("Port:", transferPort)
             fileObject = open(dataPath + fileName, "wb")
-            receiver = helper.receiver(clientSocket, (server_IP, transferPort), fileObject, packetsNum)
+            receiver = helper.receiver(False, clientSocket, (server_IP, transferPort), fileObject, packetsNum)
             receiveFileTread = threading.Thread(target = receiver.receiveFile)
             receiveFileTread.start()
             # clientSocket.sendto(helper.createMessage(1, 1, 0, 0, ""), server_IP_Port)
@@ -69,8 +68,7 @@ elif (message[1] == "lsend"):
             state = helper.getState(feedback)
             if (state == 1):
                 transferPort = helper.getTransferPort(feedback)
-                print("Port:", transferPort)
-                sender = helper.sender(clientSocket, (server_IP, transferPort), fileObject, packetsNum)
+                sender = helper.sender(False, clientSocket, (server_IP, transferPort), fileObject, packetsNum)
                 sendFileTread = threading.Thread(target = sender.sendFile)
                 sendFileTread.start()
             else:

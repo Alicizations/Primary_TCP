@@ -7,20 +7,20 @@ class BufferController:
     socketInstance = 0      # socket instance
     windowSize = 4          # window size
     length = 0              # buffer's length
-    status = []             # 0:not send, 1:send not ack, 2:acked
+    status = []             # 0:not send, 1:sent not ack, 2:acked
     cache = []              # data cache
     index = []              # data seq
     maxDataSeq = 0          # max seq
-    recevDataSeq = -1       # already recev max seq
+    recevDataSeq = -1       # already recev/acked max seq
     file = 0                # file pointer (already open)
     onRecev = 0             # control recev func
     ip_port = 0             # (ip, port)
-    mutex = 0               # mutex for length
+    mutex = 0               # mutex for length, 0:idle, 1:sending and putting 2:clearing acked seq
     writeFileOver = 0       # flag for stopping file writing
     sending = 0             # send status
     lastTimeOutWnd = 15     # last time-out window size
     maxWnd = 30             # buffer max window size
-    timeOutCount = 0
+    timeOutCount = 0        # continual timeOut counter
     def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
         self.isSender = _isSender
         self.socketInstance = _socketInstance
@@ -102,21 +102,21 @@ class BufferController:
             continue
         self.mutex = 1
         self.cache.append(data)
-        if self.isSender:
-            if self.recevDataSeq + self.windowSize // 2 <= sa:
-                self.socketInstance.sendto(data, self.ip_port)
-                self.status.append(1)
-                self.index.append(sa)
-                self.length += 1
-            else:
-                self.status.append(0)
-                self.index.append(sa)
-                self.length += 1
-                self.sendPackets()
-        else:
-            self.status.append(0)
-            self.index.append(sa)
-            self.length += 1
+        #if self.isSender:
+        #    if self.recevDataSeq + self.windowSize // 2 <= sa:
+        #        self.socketInstance.sendto(data, self.ip_port)
+        #        self.status.append(1)
+        #        self.index.append(sa)
+        #        self.length += 1
+        #    else:
+        #    self.status.append(0)
+        #    self.index.append(sa)
+        #    self.length += 1
+        #        self.sendPackets()
+        #else:
+        self.status.append(0)
+        self.index.append(sa)
+        self.length += 1
         self.mutex = 0
         return True
 
@@ -164,22 +164,32 @@ class BufferController:
         count = 100
         t = 0
         while self.recevDataSeq < self.maxDataSeq:
-            datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
-            header = datagram[:10]
-            data = datagram[10:]
-            seq = helper.getSeq(header)
+            try:
+                datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
+            except Exception as e:
+                print(e)
+                print("server is disconnected")
+            else:
+                header = datagram[:10]
+                data = datagram[10:]
+                seq = helper.getSeq(header)
+                print("seq, recevDataSeq : ", seq, self.recevDataSeq)
 
-            print("seq, recevDataSeq : ", seq, self.recevDataSeq)
-            # reply ack, ack = seq
-            if (seq <= self.recevDataSeq + 1):
-                self.socketInstance.sendto(helper.createHeader(0, seq, helper.memoryBuffer-self.length), self.ip_port)
-            if seq == self.recevDataSeq + 1:
-                self.putPacketIntoBuffer(data, seq)
-                self.recevDataSeq = seq
-                t += 1
-                if t > count:
-                    print(count)
-                    count += 100
+                # receive in-order packet
+                if seq == self.recevDataSeq + 1:
+                    self.putPacketIntoBuffer(data, seq)
+                    self.recevDataSeq = seq
+                    t += 1
+                    if t > count:
+                        print(count)
+                        count += 100
+
+                # reply ack = seq if packet is in order
+                # reply ack = max recev seq no matther receiving advanced packet or delayed packet
+                ACK = self.recevDataSeq
+                # rwdn is the remaining space of buffer
+                rwdn = helper.memoryBuffer-self.length
+                self.socketInstance.sendto(helper.createHeader(0, ACK, rwdn), self.ip_port)
         self.writeFileOver = 1
 
     def autoWriteFile(self):
@@ -215,12 +225,12 @@ class BufferController:
                         self.status[x] = 2
                     if (self.index[x] > ACK):
                         break
-                self.sendPackets()
+                #self.sendPackets()
                 print("index : ", self.index)
                 print("status: ", self.status)
                 self.setWindowSize(sWnd)
                 self.increaseWindowSize()
-                self.timeOutCount = 0        
+                self.timeOutCount = 0
         self.recevDataSeq = self.maxDataSeq
         print("get ACK over")
 

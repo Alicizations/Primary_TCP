@@ -84,12 +84,13 @@ class sender:
                 while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
                     self.controller.putPacketIntoBuffer(packet, self.seq)
 
-                # if (True or self.controller.readyToSend()):
-                #     self.controller.sendPackets()
+                if (self.controller.readyToSend()):
+                    self.controller.sendPackets()
                 self.seq += 1
                 self.working = self.controller.isEnd()
-            # if (True or self.controller.readyToSend()):
-            #     self.controller.sendPackets()
+
+            if (self.controller.readyToSend()):
+                self.controller.sendPackets()
             self.controller.clearBuffer()
             self.working = self.controller.isEnd()
         self.file.close()

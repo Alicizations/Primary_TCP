@@ -59,7 +59,11 @@ class BufferController:
         self.timeOutCount += 1
         if self.timeOutCount >= 3:
             self.recevDataSeq = self.maxDataSeq
-            print("\nreceiver gone, LFTP exit")
+            if self.isServer == 0:
+                print("\nreceiver gone, LFTP exit")
+            else:
+                print("[Server][", self.isServer, "]  client receiver no response")
+                print("[Server][", self.isServer, "]  release port")
             exit()
         # self.clearBuffer()
         self.reSendPackets()
@@ -170,9 +174,15 @@ class BufferController:
             try:
                 datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
             except Exception as e:
-                print("\n")
-                print(e)
-                print("server is disconnected")
+                if self.isServer == 0:
+                    print("\n")
+                    print(e)
+                    print("server is disconnected")
+                else:
+                    print("[Server][,", self.isServer, "]  Error:")
+                    print(e)
+                    print("[Server][,", self.isServer, "]  client sender is disconnected")
+                    print("[Server][,", self.isServer, "]  release port")
             else:
                 header = datagram[:10]
                 data = datagram[10:]
@@ -209,7 +219,11 @@ class BufferController:
             data = self.getAllPacketFromBuffer()
             for x in range(0, len(data)):
                 self.file.write(data[x])
-        print("\ndownload complete")
+        if self.isServer == 0:
+            print("\ndownload complete")
+        else:
+            print("[Server][,", self.isServer, "]  file already receive")
+            print("[Server][,", self.isServer, "]  release port")
         self.file.close()
 
     def getACK(self):
@@ -221,9 +235,15 @@ class BufferController:
                 ACK = helper.getACK(ACKDatagram[:10])
                 sWnd = helper.getWindow(ACKDatagram[:10])
             except Exception as e:
-                print("\n")
-                print(e)
-                print("TimeOut!")
+                if self.isServer == 0:
+                    print("\n")
+                    print(e)
+                    print("TimeOut!")
+                else:
+                    print("[Server][,", self.isServer, "]  Error:")
+                    print(e)
+                    print("[Server][,", self.isServer, "]  file already receive")
+                    print("[Server][,", self.isServer, "]  release port")
                 self.timeOutEvent()
             else:
                 if self.recevDataSeq < ACK:
@@ -246,7 +266,11 @@ class BufferController:
                 self.increaseWindowSize()
                 self.timeOutCount = 0
         self.recevDataSeq = self.maxDataSeq
-        print("\nget ACK over")
+        if self.isServer == 0:
+            print("\nget ACK over")
+        else:
+            print("[Server][", self.isServer, "]  send file over")
+            print("[Server][", self.isServer, "]  release port")
 
     def clearBuffer(self):
         if self.length <= 0:

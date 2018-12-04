@@ -116,7 +116,7 @@ class receiver(object):
     def __init__(self, isServer, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum):
         self.controller = BC.BufferController(False, isServer, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum-1)
                                                                             # maxSeq = pckNum - 1,count from zero
-        if (!isServer):
+        if (not isServer):
             updateProgressBar(0, fileObject.name, sender_IP_Port)
 
     def receiveFile(self):

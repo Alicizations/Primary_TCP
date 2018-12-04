@@ -58,6 +58,7 @@ def getFileSize(message):
 def getFileName(message):
     return message[8:].decode("utf-8")
 
+# 进度条
 totalWidth = 40
 def updateProgressBar(percentage, filepath, IP_Port):
     elements = filepath.split("\\")
@@ -69,6 +70,7 @@ def updateProgressBar(percentage, filepath, IP_Port):
     sys.stdout.write("\r[%s" % ("-" * (barWidth)))
     sys.stdout.flush()
 
+# 发送方类
 class sender:
     def __init__(self, isServer,senderUDPsocket, receiver_IP_Port, fileObject, packetsNum):
         self.UDPsocket = senderUDPsocket
@@ -78,6 +80,7 @@ class sender:
         self.seq = 0
         self.working = True
 
+    # 从硬盘读文件, 用缓冲发送文件
     def sendFile(self):
         self.controller.openReceive() # To receive ack from receiver
 
@@ -110,7 +113,7 @@ class sender:
         self.file.close()
 
 
-
+# 接收方类
 class receiver(object):
     """ ACK: cumulative ACK, next bytes expected to receive"""
     def __init__(self, isServer, receiverUDPSocket, sender_IP_Port, fileObject, packetsNum):
@@ -119,6 +122,7 @@ class receiver(object):
         if (not isServer):
             updateProgressBar(0, fileObject.name, sender_IP_Port)
 
+    # 用缓冲接受, 并写入硬盘
     def receiveFile(self):
         self.controller.openReceive()
 

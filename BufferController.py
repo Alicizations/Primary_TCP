@@ -12,7 +12,7 @@ class BufferController:
     cache = []              # data cache
     index = []              # data seq
     maxDataSeq = 0          # max seq
-    recevDataSeq = -1       # already recev/acked max seq
+    recevDataSeq = 0        # next recev/acked max seq
     file = 0                # file pointer (already open)
     onRecev = 0             # control recev func
     ip_port = 0             # (ip, port)
@@ -34,7 +34,7 @@ class BufferController:
         self.status = []
         self.cache = []
         self.index = []
-        self.recevDataSeq = -1
+        self.recevDataSeq = 0
         self.onRecev = 0
         self.mutex = 0
         self.writeFileOver = 0
@@ -44,7 +44,7 @@ class BufferController:
         self.timeOutCount = 0
 
 
-
+    # 增加窗口大小
     def increaseWindowSize(self):
         if self.windowSize >= self.maxWnd:
             return
@@ -53,13 +53,13 @@ class BufferController:
         else:
             self.windowSize += 1
 
-
+    # 超时处理
     def timeOutEvent(self):
         self.lastTimeOutWnd = self.windowSize
         self.windowSize = 4
         self.timeOutCount += 1
         if self.timeOutCount >= 3:
-            self.recevDataSeq = self.maxDataSeq
+            self.recevDataSeq = self.maxDataSeq + 1
             if self.isServer == 0:
                 print("\nreceiver gone, LFTP exit")
             else:
@@ -69,7 +69,7 @@ class BufferController:
         # self.clearBuffer()
         self.reSendPackets()
 
-
+    # 发送数据包
     def sendPackets(self):
         # print("index : ", self.index)
         # print("status: ", self.status)
@@ -84,6 +84,7 @@ class BufferController:
                 break
         self.mutex = 0
 
+    # 重发数据包
     def reSendPackets(self):
         # print("resend")
         # print("index : ", self.index)
@@ -98,6 +99,7 @@ class BufferController:
                 break
         self.mutex = 0
 
+    # 将数据包放入缓冲
     def putPacketIntoBuffer(self, data, sa):
         self.clearBuffer()
         # print("want to put data:")
@@ -127,18 +129,22 @@ class BufferController:
         self.mutex = 0
         return True
 
+    # 可以发送状态
     def readyToSend(self):
         if self.length >= self.windowSize // 4 or self.recevDataSeq >= self.maxDataSeq - 5:
             return True
         return False
 
+    # 结束
     def isEnd(self):
-        return self.recevDataSeq < self.maxDataSeq
+        return self.recevDataSeq <= self.maxDataSeq
 
+    # 设置窗口大小
     def setWindowSize(self, sWnd):
         if sWnd < self.windowSize:
             self.windowSize = sWnd
 
+    # 从缓冲拿数据包
     def getPacketFromBuffer(self):
         if self.length <= 0:
             return
@@ -153,6 +159,7 @@ class BufferController:
         self.mutex = 0
         return data
 
+    # 从缓冲拿全部数据包
     def getAllPacketFromBuffer(self):
         if self.length <= 0:
             return
@@ -167,11 +174,12 @@ class BufferController:
         self.mutex = 0
         return data
 
+    # 接受数据包
     def getData(self):
         count = self.maxDataSeq/40
         t = 0
         self.socketInstance.settimeout(10)
-        while self.recevDataSeq < self.maxDataSeq:
+        while self.recevDataSeq <= self.maxDataSeq:
             try:
                 datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
             except Exception as e:
@@ -184,7 +192,7 @@ class BufferController:
                     print(e)
                     print("[Server][", self.isServer, "]  client sender is disconnected")
                     print("[Server][", self.isServer, "]  release port")
-                self.recevDataSeq = self.maxDataSeq
+                self.recevDataSeq = self.maxDataSeq + 1
                 break
             else:
                 header = datagram[:10]
@@ -193,9 +201,9 @@ class BufferController:
                 # print("seq, recevDataSeq : ", seq, self.recevDataSeq)
 
                 # receive in-order packet
-                if seq == self.recevDataSeq + 1:
+                if seq == self.recevDataSeq:
                     self.putPacketIntoBuffer(data, seq)
-                    self.recevDataSeq = seq
+                    self.recevDataSeq = seq + 1
                     t += 1
                     if t > count:
                         if (self.isServer):
@@ -212,6 +220,7 @@ class BufferController:
                 self.socketInstance.sendto(helper.createHeader(0, ACK, rwdn), self.ip_port)
         self.writeFileOver = 1
 
+    # 将文件写入硬盘
     def autoWriteFile(self):
         while self.writeFileOver == 0:
             if self.length > 0:
@@ -229,11 +238,12 @@ class BufferController:
             print("[Server][", self.isServer, "]  release port")
         self.file.close()
 
+    # 接受ack
     def getACK(self):
         self.socketInstance.settimeout(3)
         count = self.maxDataSeq/40
         t = 0
-        while self.recevDataSeq < self.maxDataSeq:
+        while self.recevDataSeq <= self.maxDataSeq:
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
@@ -250,8 +260,8 @@ class BufferController:
                     print("[Server][", self.isServer, "]  release port")
                 self.timeOutEvent()
             else:
-                if self.recevDataSeq < ACK:
-                    self.recevDataSeq = ACK
+                if self.recevDataSeq < ACK - 1:
+                    self.recevDataSeq = ACK - 1
                     t += 1
                     if t > count:
                         if (self.isServer):
@@ -261,21 +271,22 @@ class BufferController:
                         count += self.maxDataSeq/40
 
                 for x in range(0, self.length):
-                    if (self.index[x] <= ACK):
+                    if (self.index[x] <= ACK - 1):
                         self.status[x] = 2
-                    if (self.index[x] > ACK):
+                    if (self.index[x] > ACK - 1):
                         break
                 #self.sendPackets()
                 self.setWindowSize(sWnd)
                 self.increaseWindowSize()
                 self.timeOutCount = 0
-        self.recevDataSeq = self.maxDataSeq
+        self.recevDataSeq = self.maxDataSeq + 1
         if self.isServer == 0:
             print("\nget ACK over")
         else:
             print("[Server][", self.isServer, "]  send file over")
             print("[Server][", self.isServer, "]  release port")
 
+    # 清理已ack包
     def clearBuffer(self):
         if self.length <= 0:
             return
@@ -296,6 +307,7 @@ class BufferController:
     def notFull(self):
         return self.length < self.windowSize
 
+    # 开启接受
     def openReceive(self):
         if self.onRecev == 1:
             return

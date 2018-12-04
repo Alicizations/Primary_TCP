@@ -8,14 +8,16 @@ import math
 server_MessageListener_Port = 3000
 
 clientSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-clientSocket.bind(("", 0)) # automatically bind IP and port
+clientSocket.bind(("", 0)) # bind IP and port automatically
 dataPath = ".\\data\\"
 dirPath = os.path.realpath(".\\data\\") + "\\"
 
 
 # main
 message = input("Command format: LFTP lsend/lget serverAddress fileName\n")
-message = message.split()
+message = message.split() # split command, by white space, into handleful element
+
+# check the validity of command
 if len(message) != 4:
     print("Invalid Command, LFTP exit")
     exit()
@@ -27,6 +29,7 @@ if (message[1] == "lget"):
     # download
     fileName = message[3]
     clientSocket.settimeout(4)
+    # exchange file information
     clientSocket.sendto(helper.createMessage(1, 1, 0, 0, fileName), server_IP_Port)
     try:
         feedback, server_IP_Port = clientSocket.recvfrom(helper.BUFSIZE)
@@ -39,10 +42,10 @@ if (message[1] == "lget"):
             packetsNum = math.ceil(fileSize / helper.packetSize)
             transferPort = helper.getTransferPort(feedback)
             fileObject = open(dataPath + fileName, "wb")
+            # new a thread to transfer
             receiver = helper.receiver(False, clientSocket, (server_IP, transferPort), fileObject, packetsNum)
             receiveFileTread = threading.Thread(target = receiver.receiveFile)
             receiveFileTread.start()
-            # clientSocket.sendto(helper.createMessage(1, 1, 0, 0, ""), server_IP_Port)
         else:
             print(helper.errorMessage[state])
 
@@ -67,7 +70,9 @@ elif (message[1] == "lsend"):
         else:
             state = helper.getState(feedback)
             if (state == 1):
+                # get server transfer port
                 transferPort = helper.getTransferPort(feedback)
+                # new a thread to transfer
                 sender = helper.sender(False, clientSocket, (server_IP, transferPort), fileObject, packetsNum)
                 sendFileTread = threading.Thread(target = sender.sendFile)
                 sendFileTread.start()

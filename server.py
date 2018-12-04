@@ -4,9 +4,8 @@ import os
 import LFTPHelper as helper
 import math
 
-
 server_IP = ""
-server_IP_Port = ("", 3000)
+server_IP_Port = ("", 3000) # bind IP automatically
 messageListener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 messageListener.bind(server_IP_Port)
 dataPath = ".\\data\\"
@@ -22,7 +21,7 @@ def findAvailablePorts():
     for i in range(0, 10):
         if  threadLock[i] == False and (availableThread[i] is None or availableThread[i].is_alive() == False):
             if (UDPSocketPool[i] is not None):
-                UDPSocketPool[i].close()
+                UDPSocketPool[i].close() # close a socket if no longer used
             threadLock[i] = True
             return i + 5000
     return -1
@@ -52,7 +51,7 @@ while(True):
                 senderUDPSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
                 senderUDPSocket.bind((server_IP, availablePort))
                 UDPSocketPool[availablePort-5000] = senderUDPSocket
-
+                # new a thread to transfer
                 sender = helper.sender(availablePort, senderUDPSocket, client_IP_Port, fileObject, packetsNum)
                 sendFileTread = threading.Thread(target = sender.sendFile)
                 availableThread[availablePort-5000] = sendFileTread
@@ -71,7 +70,7 @@ while(True):
             receiverUDPSocket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
             receiverUDPSocket.bind((server_IP, availablePort))
             UDPSocketPool[availablePort-5000] = receiverUDPSocket
-
+            # new a thread to transfer
             receiver = helper.receiver(availablePort, receiverUDPSocket, client_IP_Port, fileObject, packetsNum)
             receiveFileTread = threading.Thread(target = receiver.receiveFile)
             availableThread[availablePort-5000] = receiveFileTread

@@ -56,9 +56,9 @@ class BufferController:
         self.timeOutCount += 1
         if self.timeOutCount >= 3:
             self.recevDataSeq = self.maxDataSeq
-            print("recever gone, LFTP exit")
+            print("receiver gone, LFTP exit")
             exit()
-        self.clearBuffer()
+        # self.clearBuffer()
         self.reSendPackets()
 
 
@@ -72,7 +72,7 @@ class BufferController:
             if self.status[x] == 0:
                 self.status[x] = 1
                 self.socketInstance.sendto(self.cache[x], self.ip_port)
-            if self.index[x] > self.recevDataSeq + 10:
+            if self.index[x] > self.recevDataSeq + self.windowSize // 2:
                 break
         self.mutex = 0
 
@@ -102,12 +102,20 @@ class BufferController:
         self.mutex = 1
         self.cache.append(data)
         if self.isSender:
-            self.socketInstance.sendto(data, self.ip_port)
-            self.status.append(1)
+            if self.recevDataSeq + self.windowSize // 2 <= sa:
+                self.socketInstance.sendto(data, self.ip_port)
+                self.status.append(1)
+                self.index.append(sa)
+                self.length += 1
+            else:
+                self.status.append(0)
+                self.index.append(sa)
+                self.length += 1
+                self.sendPackets()
         else:
             self.status.append(0)
-        self.index.append(sa)
-        self.length += 1
+            self.index.append(sa)
+            self.length += 1
         self.mutex = 0
         return True
 
@@ -193,7 +201,7 @@ class BufferController:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
                 sWnd = helper.getWindow(ACKDatagram[:10])
-                # print("ACK: ", ACKDatagram[:10])
+                print("ACK: ", ACK)
             except Exception as e:
                 print(e)
                 print("TimeOut!")
@@ -204,13 +212,15 @@ class BufferController:
                 for x in range(0, self.length):
                     if (self.index[x] <= ACK):
                         self.status[x] = 2
+                    if (self.index[x] > ACK):
                         break
-                self.increaseWindowSize()
+                self.sendPackets()
+                print("index : ", self.index)
+                print("status: ", self.status)
                 self.setWindowSize(sWnd)
-                self.timeOutCount = 0
-            # finally:
-            #     print("index : ", self.index)
-            #     print("status: ", self.status)
+                self.increaseWindowSize()
+                self.timeOutCount = 0        
+        self.recevDataSeq = self.maxDataSeq
         print("get ACK over")
 
     def clearBuffer(self):

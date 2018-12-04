@@ -4,6 +4,7 @@ import LFTPHelper as helper
 class BufferController:
     """docstring for BufferController"""
     isSender = 0            # sender or not
+    isServer = 0            # server or not
     socketInstance = 0      # socket instance
     windowSize = 4          # window size
     length = 0              # buffer's length
@@ -21,8 +22,9 @@ class BufferController:
     lastTimeOutWnd = 15     # last time-out window size
     maxWnd = 30             # buffer max window size
     timeOutCount = 0        # continual timeOut counter
-    def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
+    def __init__(self, _isSender, _isServer, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
         self.isSender = _isSender
+        self.isServer = _isServer
         self.socketInstance = _socketInstance
         self.file = _file
         self.ip_port = _ip_port
@@ -56,7 +58,7 @@ class BufferController:
         self.timeOutCount += 1
         if self.timeOutCount >= 3:
             self.recevDataSeq = self.maxDataSeq
-            print("receiver gone, LFTP exit")
+            print("\nreceiver gone, LFTP exit")
             exit()
         # self.clearBuffer()
         self.reSendPackets()
@@ -161,19 +163,20 @@ class BufferController:
         return data
 
     def getData(self):
-        count = 100
+        count = self.maxDataSeq/40
         t = 0
         while self.recevDataSeq < self.maxDataSeq:
             try:
                 datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
             except Exception as e:
+                print("\n")
                 print(e)
                 print("server is disconnected")
             else:
                 header = datagram[:10]
                 data = datagram[10:]
                 seq = helper.getSeq(header)
-                print("seq, recevDataSeq : ", seq, self.recevDataSeq)
+                # print("seq, recevDataSeq : ", seq, self.recevDataSeq)
 
                 # receive in-order packet
                 if seq == self.recevDataSeq + 1:
@@ -181,8 +184,11 @@ class BufferController:
                     self.recevDataSeq = seq
                     t += 1
                     if t > count:
-                        print(count)
-                        count += 100
+                        if (self.isServer):
+                            pass
+                        else:
+                            helper.updateProgressBar(self.recevDataSeq/self.maxDataSeq, self.file.name, self.ip_port)
+                        count += self.maxDataSeq/40
 
                 # reply ack = seq if packet is in order
                 # reply ack = max recev seq no matther receiving advanced packet or delayed packet
@@ -199,40 +205,48 @@ class BufferController:
                 for x in range(0, len(data)):
                     self.file.write(data[x])
         if self.length > 0:
-            print("last time to write data")
             data = self.getAllPacketFromBuffer()
             for x in range(0, len(data)):
                 self.file.write(data[x])
+        print("\ndownload complete")
         self.file.close()
 
     def getACK(self):
         self.socketInstance.settimeout(3)
+        count = self.maxDataSeq/40
+        t = 0
         while self.recevDataSeq < self.maxDataSeq:
             try:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
                 sWnd = helper.getWindow(ACKDatagram[:10])
-                print("ACK: ", ACK)
             except Exception as e:
+                print("\n")
                 print(e)
                 print("TimeOut!")
                 self.timeOutEvent()
             else:
                 if self.recevDataSeq < ACK:
                     self.recevDataSeq = ACK
+                    t += 1
+                    if t > count:
+                        if (self.isServer):
+                            pass
+                        else:
+                            helper.updateProgressBar(self.recevDataSeq/self.maxDataSeq, self.file.name, self.ip_port)
+                        count += self.maxDataSeq/40
+
                 for x in range(0, self.length):
                     if (self.index[x] <= ACK):
                         self.status[x] = 2
                     if (self.index[x] > ACK):
                         break
                 #self.sendPackets()
-                print("index : ", self.index)
-                print("status: ", self.status)
                 self.setWindowSize(sWnd)
                 self.increaseWindowSize()
                 self.timeOutCount = 0
         self.recevDataSeq = self.maxDataSeq
-        print("get ACK over")
+        print("\nget ACK over")
 
     def clearBuffer(self):
         if self.length <= 0:

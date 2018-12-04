@@ -52,7 +52,7 @@ while(True):
                 senderUDPSocket.bind((server_IP, availablePort))
                 UDPSocketPool[availablePort-5000] = senderUDPSocket
 
-                sender = helper.sender(senderUDPSocket, client_IP_Port, fileObject, packetsNum)
+                sender = helper.sender(True, senderUDPSocket, client_IP_Port, fileObject, packetsNum)
                 sendFileTread = threading.Thread(target = sender.sendFile)
                 availableThread[availablePort-5000] = sendFileTread
                 sendFileTread.start()
@@ -71,7 +71,7 @@ while(True):
             UDPSocketPool[availablePort-5000] = receiverUDPSocket
 
             print(availablePort)
-            receiver = helper.receiver(receiverUDPSocket, client_IP_Port, fileObject, packetsNum)
+            receiver = helper.receiver(True, receiverUDPSocket, client_IP_Port, fileObject, packetsNum)
             receiveFileTread = threading.Thread(target = receiver.receiveFile)
             availableThread[availablePort-5000] = receiveFileTread
             receiveFileTread.start()

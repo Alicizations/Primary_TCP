@@ -20,6 +20,7 @@ class BufferController:
     sending = 0             # send status
     lastTimeOutWnd = 15     # last time-out window size
     maxWnd = 30             # buffer max window size
+    timeOutCount = 0
     def __init__(self, _isSender, _socketInstance, _ip_port, _file = 0, _maxDataSeq = 0):
         self.isSender = _isSender
         self.socketInstance = _socketInstance
@@ -38,6 +39,7 @@ class BufferController:
         self.sending = 0
         self.lastTimeOutWnd = 15
         self.maxWnd = 30
+        self.timeOutCount = 0
 
     def increaseWindowSize(self):
         if self.windowSize >= self.maxWnd:
@@ -51,6 +53,11 @@ class BufferController:
     def timeOutEvent(self):
         self.lastTimeOutWnd = self.windowSize
         self.windowSize = 4
+        self.timeOutCount += 1
+        if self.timeOutCount >= 3:
+            self.recevDataSeq = self.maxDataSeq
+            print("recever gone, LFTP exit")
+            exit()
         self.clearBuffer()
         self.reSendPackets()
 
@@ -70,9 +77,9 @@ class BufferController:
         self.mutex = 0
 
     def reSendPackets(self):
-        print("resend")
-        print("index : ", self.index)
-        print("status: ", self.status)
+        # print("resend")
+        # print("index : ", self.index)
+        # print("status: ", self.status)
         while self.mutex == 2:
             continue
         self.mutex = 1
@@ -85,9 +92,9 @@ class BufferController:
 
     def putPacketIntoBuffer(self, data, sa):
         self.clearBuffer()
-        print("want to put data:")
-        print("index : ", self.index)
-        print("status: ", self.status)
+        # print("want to put data:")
+        # print("index : ", self.index)
+        # print("status: ", self.status)
         if (self.isSender and self.length >= self.windowSize):
             return False;
         while self.mutex == 2:
@@ -108,6 +115,9 @@ class BufferController:
         if self.length >= self.windowSize // 4 or self.recevDataSeq >= self.maxDataSeq - 5:
             return True
         return False
+
+    def isEnd(self):
+        return self.recevDataSeq < self.maxDataSeq
 
     def setWindowSize(self, sWnd):
         if sWnd < self.windowSize:
@@ -142,7 +152,7 @@ class BufferController:
         return data
 
     def getData(self):
-        count = 1000
+        count = 100
         t = 0
         while self.recevDataSeq < self.maxDataSeq:
             datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
@@ -157,10 +167,10 @@ class BufferController:
             if seq == self.recevDataSeq + 1:
                 self.putPacketIntoBuffer(data, seq)
                 self.recevDataSeq = seq
+                t += 1
                 if t > count:
                     print(count)
-                    t += 1
-                    count += 1000
+                    count += 100
         self.writeFileOver = 1
 
     def autoWriteFile(self):
@@ -183,7 +193,7 @@ class BufferController:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
                 sWnd = helper.getWindow(ACKDatagram[:10])
-                print("ACK: ", ACKDatagram[:10])
+                # print("ACK: ", ACKDatagram[:10])
             except Exception as e:
                 print(e)
                 print("TimeOut!")
@@ -192,14 +202,15 @@ class BufferController:
                 if self.recevDataSeq < ACK:
                     self.recevDataSeq = ACK
                 for x in range(0, self.length):
-                    if (self.index[x] == ACK):
+                    if (self.index[x] <= ACK):
                         self.status[x] = 2
                         break
                 self.increaseWindowSize()
                 self.setWindowSize(sWnd)
-            finally:
-                print("index : ", self.index)
-                print("status: ", self.status)
+                self.timeOutCount = 0
+            # finally:
+            #     print("index : ", self.index)
+            #     print("status: ", self.status)
         print("get ACK over")
 
     def clearBuffer(self):

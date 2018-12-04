@@ -26,7 +26,6 @@ class BufferController:
         self.isSender = _isSender
         self.isServer = _isServer
         self.socketInstance = _socketInstance
-        self.socketInstance.settimeout(3)
         self.file = _file
         self.ip_port = _ip_port
         self.maxDataSeq = _maxDataSeq
@@ -172,6 +171,7 @@ class BufferController:
     def getData(self):
         count = self.maxDataSeq/40
         t = 0
+        self.socketInstance.settimeout(10)
         while self.recevDataSeq < self.maxDataSeq:
             try:
                 datagram, clientAddress = self.socketInstance.recvfrom(helper.BUFSIZE)
@@ -181,10 +181,12 @@ class BufferController:
                     print(e)
                     print("server is disconnected")
                 else:
-                    print("[Server][,", self.isServer, "]  Error:")
+                    print("[Server][", self.isServer, "]  Error:")
                     print(e)
-                    print("[Server][,", self.isServer, "]  client sender is disconnected")
-                    print("[Server][,", self.isServer, "]  release port")
+                    print("[Server][", self.isServer, "]  client sender is disconnected")
+                    print("[Server][", self.isServer, "]  release port")
+                self.recevDataSeq = self.maxDataSeq
+                exit()
             else:
                 header = datagram[:10]
                 data = datagram[10:]
@@ -224,11 +226,12 @@ class BufferController:
         if self.isServer == 0:
             print("\ndownload complete")
         else:
-            print("[Server][,", self.isServer, "]  file already receive")
-            print("[Server][,", self.isServer, "]  release port")
+            print("[Server][", self.isServer, "]  file already receive")
+            print("[Server][", self.isServer, "]  release port")
         self.file.close()
 
     def getACK(self):
+        self.socketInstance.settimeout(3)
         count = self.maxDataSeq/40
         t = 0
         while self.recevDataSeq < self.maxDataSeq:
@@ -242,10 +245,10 @@ class BufferController:
                     print(e)
                     print("TimeOut!")
                 else:
-                    print("[Server][,", self.isServer, "]  Error:")
+                    print("[Server][", self.isServer, "]  Error:")
                     print(e)
-                    print("[Server][,", self.isServer, "]  file already receive")
-                    print("[Server][,", self.isServer, "]  release port")
+                    print("[Server][", self.isServer, "]  file already receive")
+                    print("[Server][", self.isServer, "]  release port")
                 self.timeOutEvent()
             else:
                 if self.recevDataSeq < ACK:

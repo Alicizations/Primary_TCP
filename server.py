@@ -28,10 +28,10 @@ def findAvailablePorts():
     return -1
 
 # main
-print("[Server]  LFTP server is running")
+print("[Server]          LFTP server is running")
 while(True):
     message, client_IP_Port = messageListener.recvfrom(helper.BUFSIZE)
-    print("[Server]  get request, try to assign an available port")
+    print("[Server]          get request, try to assign an available port")
     availablePort = findAvailablePorts()
     if (availablePort in ports):
         print("[Server][", availablePort, "]  find port")

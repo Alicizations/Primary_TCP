@@ -26,6 +26,7 @@ class BufferController:
         self.isSender = _isSender
         self.isServer = _isServer
         self.socketInstance = _socketInstance
+        self.socketInstance.settimeout(3)
         self.file = _file
         self.ip_port = _ip_port
         self.maxDataSeq = _maxDataSeq
@@ -42,6 +43,8 @@ class BufferController:
         self.lastTimeOutWnd = 15
         self.maxWnd = 30
         self.timeOutCount = 0
+
+
 
     def increaseWindowSize(self):
         if self.windowSize >= self.maxWnd:
@@ -212,7 +215,6 @@ class BufferController:
         self.file.close()
 
     def getACK(self):
-        self.socketInstance.settimeout(3)
         count = self.maxDataSeq/40
         t = 0
         while self.recevDataSeq < self.maxDataSeq:

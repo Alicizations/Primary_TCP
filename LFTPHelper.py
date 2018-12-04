@@ -95,7 +95,8 @@ class sender:
                 # print("seq: ", self.seq)
                 # if buffer is full, wait buffer space
                 while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
-                    self.controller.putPacketIntoBuffer(packet, self.seq)
+                    self.controller.sendPackets()
+                    self.controller.reSendPackets()
 
                 if (self.controller.readyToSend()):
                     self.controller.sendPackets()
@@ -107,7 +108,6 @@ class sender:
             self.controller.clearBuffer()
             self.working = self.controller.isEnd()
         self.file.close()
-        print("send over!")
 
 
 

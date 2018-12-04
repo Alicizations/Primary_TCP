@@ -183,7 +183,7 @@ class BufferController:
                     print("[Server][", self.isServer, "]  client sender is disconnected")
                     print("[Server][", self.isServer, "]  release port")
                 self.recevDataSeq = self.maxDataSeq
-                exit()
+                break
             else:
                 header = datagram[:10]
                 data = datagram[10:]

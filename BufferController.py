@@ -260,8 +260,8 @@ class BufferController:
                     print("[Server][", self.isServer, "]  release port")
                 self.timeOutEvent()
             else:
-                if self.recevDataSeq < ACK - 1:
-                    self.recevDataSeq = ACK - 1
+                if self.recevDataSeq < ACK:
+                    self.recevDataSeq = ACK
                     t += 1
                     if t > count:
                         if (self.isServer):

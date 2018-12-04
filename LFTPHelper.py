@@ -84,11 +84,11 @@ class sender:
                 while (self.controller.putPacketIntoBuffer(packet, self.seq) == False):
                     self.controller.putPacketIntoBuffer(packet, self.seq)
 
-                if (True or self.controller.readyToSend()):
-                    self.controller.sendPackets()
+                # if (True or self.controller.readyToSend()):
+                #     self.controller.sendPackets()
                 self.seq += 1
-            if (True or self.controller.readyToSend()):
-                self.controller.sendPackets()
+            # if (True or self.controller.readyToSend()):
+            #     self.controller.sendPackets()
                 
         self.file.close()
         print("send over!")

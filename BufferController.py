@@ -94,6 +94,7 @@ class BufferController:
         self.mutex = 1
         self.status.append(0)
         self.cache.append(data)
+        self.socketInstance.sentto(data, self.ip_port)
         self.index.append(sa)
         self.length += 1
         self.mutex = 0

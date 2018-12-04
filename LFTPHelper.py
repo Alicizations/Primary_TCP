@@ -107,7 +107,6 @@ class sender:
             self.controller.clearBuffer()
             self.working = self.controller.isEnd()
         self.file.close()
-        print("send over!")
 
 
 

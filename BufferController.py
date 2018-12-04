@@ -84,17 +84,21 @@ class BufferController:
         self.mutex = 0
 
     def putPacketIntoBuffer(self, data, sa):
-        # print("want to put data:")
-        # print("index : ", self.index)
-        # print("status: ", self.status)
+        self.clearBuffer()
+        print("want to put data:")
+        print("index : ", self.index)
+        print("status: ", self.status)
         if (self.isSender and self.length >= self.windowSize):
             return False;
         while self.mutex == 2:
             continue
         self.mutex = 1
-        self.status.append(0)
         self.cache.append(data)
-        self.socketInstance.sentto(data, self.ip_port)
+        if self.isSender:
+            self.socketInstance.sendto(data, self.ip_port)
+            self.status.append(1)
+        else:
+            self.status.append(0)
         self.index.append(sa)
         self.length += 1
         self.mutex = 0
@@ -146,7 +150,7 @@ class BufferController:
             data = datagram[10:]
             seq = helper.getSeq(header)
 
-            # print("seq, recevDataSeq : ", seq, self.recevDataSeq)
+            print("seq, recevDataSeq : ", seq, self.recevDataSeq)
             # reply ack, ack = seq
             if (seq <= self.recevDataSeq + 1):
                 self.socketInstance.sendto(helper.createHeader(0, seq, helper.memoryBuffer-self.length), self.ip_port)
@@ -179,7 +183,7 @@ class BufferController:
                 ACKDatagram, addr = self.socketInstance.recvfrom(helper.BUFSIZE)
                 ACK = helper.getACK(ACKDatagram[:10])
                 sWnd = helper.getWindow(ACKDatagram[:10])
-                # print("ACK: ", ACK)
+                print("ACK: ", ACKDatagram[:10])
             except Exception as e:
                 print(e)
                 print("TimeOut!")
@@ -191,12 +195,11 @@ class BufferController:
                     if (self.index[x] == ACK):
                         self.status[x] = 2
                         break
-                self.clearBuffer()
                 self.increaseWindowSize()
                 self.setWindowSize(sWnd)
-            # finally:
-                # print("index : ", self.index)
-                # print("status: ", self.status)
+            finally:
+                print("index : ", self.index)
+                print("status: ", self.status)
         print("get ACK over")
 
     def clearBuffer(self):

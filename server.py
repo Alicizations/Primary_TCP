@@ -5,8 +5,8 @@ import LFTPHelper as helper
 import math
 
 
-server_IP = "192.168.199.111"
-server_IP_Port = ("192.168.199.111", 3000)
+server_IP = "192.168.199.129"
+server_IP_Port = ("192.168.199.129", 3000)
 messageListener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 messageListener.bind(server_IP_Port)
 dataPath = ".\\data\\"
